@@ -1,0 +1,7 @@
+torch
+torchvision
+tqdm
+six
+matplotlib
+soundfile
+scipy
