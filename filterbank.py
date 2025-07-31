@@ -17,10 +17,13 @@ def flip(x, dim):
     return x.view(xsize)
 
 def sinc(band,t_right):
-    y_right= torch.sin(2*math.pi*band*t_right)/(2*math.pi*band*t_right)
+    # move to same device as t_right
+    pi = torch.tensor(math.pi, device=t_right.device, dtype=t_right.dtype)
+
+    y_right= torch.sin(2*pi*band*t_right)/(2*math.pi*band*t_right)
     y_left= flip(y_right,0)
 
-    y=torch.cat([y_left,Variable(torch.ones(1)),y_right])
+    y=torch.cat([y_left,torch.ones(1, device=t_right.device, dtype=t_right.dtype),y_right])
 
     return y
 
@@ -47,17 +50,19 @@ class Filterbank(nn.Module):
         self.filt_band = nn.Parameter(torch.from_numpy((b2-b1)/self.freq_scale))
 
     def forward(self, x):
+        device = x.device # infer device from input
+
         N = self.Filt_dim
-        t_right=Variable(torch.linspace(1, (N-1)/2, steps=int((N-1)/2))/self.fs)
+        t_right=torch.linspace(1, (N - 1) / 2, steps=int((N - 1) / 2), device=device)
 
         min_freq=50.0
         min_band=50.0
 
         filt_beg_freq=torch.abs(self.filt_b1)+min_freq/self.freq_scale
         filt_end_freq=filt_beg_freq+(torch.abs(self.filt_band)+min_band/self.freq_scale)
+        filters = torch.zeros((self.N_filt, self.Filt_dim), device=device)
 
         for i in range(0, self.N_filt, 20):
-            filters=Variable(torch.zeros((self.N_filt, self.Filt_dim)))
                         
             low_pass1 = 2*filt_beg_freq[i].float()*sinc(filt_beg_freq[i].float()*self.freq_scale,t_right)
             low_pass2 = 2*filt_end_freq[i].float()*sinc(filt_end_freq[i].float()*self.freq_scale,t_right)
@@ -67,7 +72,7 @@ class Filterbank(nn.Module):
             band_pass=band_pass/torch.max(band_pass)
 
             # Filter window (hamming)
-            n=torch.linspace(0, N, steps=N)
+            n=torch.linspace(0, N, steps=N, device=device)
             window=0.54-0.46*torch.cos(2*math.pi*n/N)
             window=Variable(window.float())
 

@@ -21,7 +21,7 @@ def ReadList(list_file):
 # define input audio
 input_audio_number = 1
 wav_lst_tr=ReadList("data_lists/TIMIT_train.scp")
-input_audio_path = os.path.join("./INPUT_Folder", wav_lst_tr[input_audio_number])
+input_audio_path = os.path.join("./OUTPUT_Folder", wav_lst_tr[input_audio_number])
 input_audio, fs = sf.read(input_audio_path)
 
 def load_rnd_chunk(signal):
@@ -55,7 +55,7 @@ with torch.no_grad():  # disable gradient calculation for efficiency
     reconstructed_output = conv_vae(filtered_output) # -> (1, 1, 2950)
     print("Reconstructed output shape: ", np.array(reconstructed_output).shape)
 
-print("Shape of reconstructed output: ", reconstructed_output)
+print("Shape of reconstructed output: ", reconstructed_output.shape)
 
 
 
@@ -67,12 +67,16 @@ reconstructed_np = reconstructed_output.detach().cpu().numpy()
 # Assuming shape is (1, 1, signal_length)
 reconstructed_np = reconstructed_np.squeeze()  # shape becomes (signal_length,)
 
-# Optional: Normalize audio to avoid clipping
-reconstructed_np = reconstructed_np / np.max(np.abs(reconstructed_np) + 1e-9)  # safe division
+# # Optional: Normalize audio to avoid clipping
+# reconstructed_np = reconstructed_np / np.max(np.abs(reconstructed_np) + 1e-9)  # safe division
 
 # plot
 plt.figure(figsize=(10, 5))
 plt.plot(input_audio.squeeze((0, 1)))
+plt.show()
+
+plt.figure(figsize=(10, 5))
+plt.plot(reconstructed_np)
 plt.show()
 
 

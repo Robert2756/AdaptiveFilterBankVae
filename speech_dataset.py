@@ -34,11 +34,13 @@ class AudioDataset(torch.utils.data.IterableDataset):
         self.batch_size = batch_size
     
     def __len__(self):
-        return len(self.wav_list)
+        return len(self.wav_list) // self.batch_size
 
     def __iter__(self):
-        while True:  # or for a fixed number of batches
+        # Number of batches per epoch
+        num_batches = len(self.wav_list) // self.batch_size
+        for _ in range(num_batches):
             yield create_batches_rnd(
                 self.batch_size, self.data_folder, self.wav_list,
                 len(self.wav_list), self.wlen, 0.2
-            ) 
+            )

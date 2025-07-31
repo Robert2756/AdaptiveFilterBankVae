@@ -10,6 +10,9 @@ from filterbank import Filterbank
 from backbone import ConvAutoencoder
 from speech_dataset import AudioDataset
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
+
 save_dir = "checkpoints"
 os.makedirs(save_dir, exist_ok=True)
 
@@ -42,15 +45,15 @@ wshift=int(fs*cw_shift/1000.00) # time interval until next chunk
 Batch_size=128
 
 # initialize model
-filterbank = Filterbank(N_filt=80, filt_dim=251, fs=16000)
-conv_vae = ConvAutoencoder()
+filterbank = Filterbank(N_filt=80, filt_dim=251, fs=16000).to(device)
+conv_vae = ConvAutoencoder().to(device)
 
 # initialize optimizers
 optimizer_filterbank = optim.RMSprop(filterbank.parameters(), lr=0.001,alpha=0.95, eps=1e-8) 
 optimizer_vae = optim.RMSprop(conv_vae.parameters(), lr=0.001, alpha=0.95, eps=1e-8)
 
 # train loop
-N_epochs = 2
+N_epochs = 100 # 18*100 = 1800 steps
 N_batches = 800
 
 # prepare dataset
@@ -77,8 +80,7 @@ for epoch in range(N_epochs):
 
     for i, waveform_batch in enumerate(tqdm(train_loader, desc="Training", leave=False)):
         # waveform_batch -> (128, 3200)
-        if i >= 100:
-            break
+        waveform_batch = waveform_batch.to(device)
 
         # Reset gradients
         optimizer_filterbank.zero_grad()
@@ -90,12 +92,12 @@ for epoch in range(N_epochs):
 
         # Forward pass through VAE
         x_out = conv_vae(x_filtered)
-        print("x_out shape: ", np.array(x_out.detach()).shape)
-        print("x_filtered shape: ", np.array(x_filtered.detach()).shape)
-        print("waveform batch shape: ", np.array(waveform_batch.unsqueeze(1).detach()).shape)
+        # print("x_out shape: ", x_out.detach().shape)
+        # print("x_filtered shape: ", x_filtered.detach().shape)
+        # print("waveform batch shape: ", waveform_batch.unsqueeze(1).detach().shape)
 
         # Compute reconstruction loss
-        loss = criterion(x_out, waveform_batch.unsqueeze(1)[:, :, :2950]) # EXTEND TO 2950??!
+        loss = criterion(x_out, waveform_batch.unsqueeze(1))
 
         # Backpropagation
         loss.backward()
@@ -113,9 +115,13 @@ for epoch in range(N_epochs):
 # Save model weights after each epoch
 torch.save({
     'epoch': epoch + 1,
-    'filterbank_state_dict': filterbank.state_dict(),
-    'conv_vae_state_dict': conv_vae.state_dict(),
+    'filterbank_state_dict': filterbank.cpu().state_dict(),
+    'conv_vae_state_dict': conv_vae.cpu().state_dict(),
     'optimizer_filterbank_state_dict': optimizer_filterbank.state_dict(),
     'optimizer_vae_state_dict': optimizer_vae.state_dict(),
     'loss': loss_sum,
 }, os.path.join(save_dir, f"checkpoint_epoch_{epoch+1}.pth"))
+
+# moving models back to gpu
+filterbank.to(device)
+conv_vae.to(device)
