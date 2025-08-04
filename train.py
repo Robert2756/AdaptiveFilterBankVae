@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from filterbank import Filterbank
@@ -52,8 +53,11 @@ conv_vae = ConvAutoencoder().to(device)
 optimizer_filterbank = optim.RMSprop(filterbank.parameters(), lr=0.001,alpha=0.95, eps=1e-8) 
 optimizer_vae = optim.RMSprop(conv_vae.parameters(), lr=0.001, alpha=0.95, eps=1e-8)
 
+scheduler_filterbank = torch.optim.lr_scheduler.StepLR(optimizer_filterbank, step_size=25, gamma=0.9)
+scheduler_vae = torch.optim.lr_scheduler.StepLR(optimizer_vae, step_size=25, gamma=0.9)
+
 # train loop
-N_epochs = 100 # 18*100 = 1800 steps
+N_epochs = 500 # 18*500 = 9000 steps
 N_batches = 800
 
 # prepare dataset
@@ -65,7 +69,11 @@ dataset = AudioDataset(
     batch_size=Batch_size,
 )
 train_loader = torch.utils.data.DataLoader(dataset, batch_size=None) # batch_size=None as the custom dataset already yields batches
-criterion = nn.MSELoss()
+# criterion = nn.MSELoss()
+criterion = torch.nn.L1Loss()
+
+# loss values
+loss_values = []
 
 for epoch in range(N_epochs):
   
@@ -75,6 +83,8 @@ for epoch in range(N_epochs):
 
     loss_sum=0
     err_sum=0
+
+    loss_epoch = []
 
     train_loader_tqdm = tqdm(train_loader, desc=f"Epoch {epoch+1}/{N_epochs}")
 
@@ -90,6 +100,19 @@ for epoch in range(N_epochs):
         x_filtered = filterbank(waveform_batch.unsqueeze(1)) # (128, 80, 3200)
         # print("x_filtered shape: ", np.array(x_filtered.detach()).shape)
 
+        # with torch.no_grad():
+        #     filter_idx = 0
+        #     num_samples = 8
+
+        #     plt.figure(figsize=(15, 10))
+        #     for i in range(num_samples):
+        #         plt.subplot(num_samples, 1, i + 1)
+        #         plt.plot(x_filtered[i, filter_idx].detach().cpu().numpy())
+        #         plt.title(f"Sample {i}, Filter {filter_idx}")
+        #         plt.tight_layout()
+
+        #     plt.show()
+
         # Forward pass through VAE
         x_out = conv_vae(x_filtered)
         # print("x_out shape: ", x_out.detach().shape)
@@ -99,6 +122,19 @@ for epoch in range(N_epochs):
         # Compute reconstruction loss
         loss = criterion(x_out, waveform_batch.unsqueeze(1))
 
+        # x_out = x_out.detach().cpu()
+        # x_true = waveform_batch.unsqueeze(1).detach().cpu()
+        # print("Input waveform: mean = %.4f, std = %.4f" % (x_true.mean(), x_true.std()))
+        # print("Reconstructed: mean = %.4f, std = %.4f" % (x_out.mean(), x_out.std()))
+
+        # Plot comparison
+        # plt.figure(figsize=(12, 4))
+        # plt.plot(x_true[0, 0].numpy(), label='Original')
+        # plt.plot(x_out[0, 0].numpy(), label='Reconstructed')
+        # plt.legend()
+        # plt.title("Original vs Reconstructed waveform")
+        # plt.show()
+
         # Backpropagation
         loss.backward()
 
@@ -106,11 +142,26 @@ for epoch in range(N_epochs):
         optimizer_filterbank.step()
         optimizer_vae.step()
 
-        # Accumulate loss
-        loss_sum += loss.item()
+        loss_epoch.append(loss.item())
 
-    print(f"Epoch [{epoch+1}/{N_epochs}], Loss: {loss_sum:.4f}")
+    # Accumulate loss
+    loss_sum += loss.item()
+    loss_values.append(sum(loss_epoch) / len(loss_epoch))
 
+    scheduler_filterbank.step()
+    scheduler_vae.step()
+    current_lr = scheduler_filterbank.get_last_lr()[0]
+    print(f"Epoch [{epoch+1}/{N_epochs}], Loss: {loss_sum:.4f}, LR: {current_lr}")
+
+# plot the loss
+plt.figure(figsize=(10, 5))
+plt.plot(loss_values)
+plt.yscale('log')  # Set y-axis to log scale
+plt.title('Loss (Log Scale)')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.grid(True)
+plt.show()
 
 # Save model weights after each epoch
 torch.save({

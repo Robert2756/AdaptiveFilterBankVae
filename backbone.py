@@ -1,6 +1,8 @@
+import time
 import numpy as np
 import torch.nn.functional as F
 import torch.nn as nn
+import matplotlib.pyplot as plt
     
 class ConvAutoencoder(nn.Module):
     def __init__(self):

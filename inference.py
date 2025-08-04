@@ -36,7 +36,7 @@ def load_rnd_chunk(signal):
 input_audio = load_rnd_chunk(input_audio)
 
 # init filterbank model
-checkpoint = torch.load('./checkpoints/checkpoint_epoch_2.pth')
+checkpoint = torch.load('./checkpoints/checkpoint_epoch_500.pth')
 filterbank = Filterbank(N_filt=80, filt_dim=251, fs=16000)
 filterbank.load_state_dict(checkpoint['filterbank_state_dict'])
 filterbank.eval()

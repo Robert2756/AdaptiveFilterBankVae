@@ -62,7 +62,7 @@ class Filterbank(nn.Module):
         filt_end_freq=filt_beg_freq+(torch.abs(self.filt_band)+min_band/self.freq_scale)
         filters = torch.zeros((self.N_filt, self.Filt_dim), device=device)
 
-        for i in range(0, self.N_filt, 20):
+        for i in range(0, self.N_filt):
                         
             low_pass1 = 2*filt_beg_freq[i].float()*sinc(filt_beg_freq[i].float()*self.freq_scale,t_right)
             low_pass2 = 2*filt_end_freq[i].float()*sinc(filt_end_freq[i].float()*self.freq_scale,t_right)
@@ -77,5 +77,5 @@ class Filterbank(nn.Module):
             window=Variable(window.float())
 
             filters[i,:]=band_pass*window
-            out = F.conv1d(x, filters.view(self.N_filt, 1, self.Filt_dim), padding=125) # (80, 1, 251) -> (1, 80, 3200)
-            return out
+        out = F.conv1d(x, filters.view(self.N_filt, 1, self.Filt_dim), padding=125) # (80, 1, 251) -> (1, 80, 3200)
+        return out
