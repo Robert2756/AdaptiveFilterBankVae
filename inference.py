@@ -41,6 +41,19 @@ filterbank = Filterbank(N_filt=80, filt_dim=251, fs=16000)
 filterbank.load_state_dict(checkpoint['filterbank_state_dict'])
 filterbank.eval()
 
+# plot filters
+filters = filterbank.get_filters()
+
+plt.figure(figsize=(12, 8))
+for i in range(min(10, filters.shape[0])):  # Plot first 10 filters
+    plt.plot(filters[i], label=f'Filter {i}')
+plt.title('Learned Filter Impulse Responses')
+plt.xlabel('Sample')
+plt.ylabel('Amplitude')
+plt.legend()
+plt.grid(True)
+plt.show()
+
 # init reconstruction model
 conv_vae = ConvAutoencoder()
 conv_vae.load_state_dict(checkpoint['conv_vae_state_dict'])

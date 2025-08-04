@@ -79,3 +79,28 @@ class Filterbank(nn.Module):
             filters[i,:]=band_pass*window
         out = F.conv1d(x, filters.view(self.N_filt, 1, self.Filt_dim), padding=125) # (80, 1, 251) -> (1, 80, 3200)
         return out
+    
+    def get_filters(self):
+        device = self.filt_b1.device
+        N = self.Filt_dim
+        t_right = torch.linspace(1, (N - 1) / 2, steps=int((N - 1) / 2), device=device)
+
+        min_freq = 50.0
+        min_band = 50.0
+
+        filt_beg_freq = torch.abs(self.filt_b1) + min_freq / self.freq_scale
+        filt_end_freq = filt_beg_freq + (torch.abs(self.filt_band) + min_band / self.freq_scale)
+        filters = torch.zeros((self.N_filt, self.Filt_dim), device=device)
+
+        for i in range(self.N_filt):
+            low_pass1 = 2 * filt_beg_freq[i].float() * sinc(filt_beg_freq[i].float() * self.freq_scale, t_right)
+            low_pass2 = 2 * filt_end_freq[i].float() * sinc(filt_end_freq[i].float() * self.freq_scale, t_right)
+
+            band_pass = (low_pass2 - low_pass1)
+            band_pass = band_pass / torch.max(band_pass)
+
+            n = torch.linspace(0, N, steps=N, device=device)
+            window = 0.54 - 0.46 * torch.cos(2 * math.pi * n / N)
+            filters[i, :] = band_pass * window.float()
+        
+        return filters.cpu().detach().numpy()
