@@ -15,7 +15,7 @@ def create_batches_rnd(batch_size,data_folder,wav_lst,N_snt,wlen,fact_amp):
         # select a random sentence from the list  (joint distribution)
         [fs,signal]=scipy.io.wavfile.read(data_folder+wav_lst[snt_id_arr[i]]) # pick the new waveform
         signal=signal.astype(float)/32768 # nromalize waveform to [-1, 1]
-
+        
         # accesing to a random chunk
         snt_len=signal.shape[0]
         snt_beg=np.random.randint(snt_len-wlen-1) # selects random starting point in the audio

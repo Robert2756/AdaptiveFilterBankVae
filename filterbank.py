@@ -53,7 +53,7 @@ class Filterbank(nn.Module):
         device = x.device # infer device from input
 
         N = self.Filt_dim
-        t_right=torch.linspace(1, (N - 1) / 2, steps=int((N - 1) / 2), device=device)
+        t_right=torch.linspace(1, (N - 1) / 2, steps=int((N - 1) / 2), device=device)/self.fs
 
         min_freq=50.0
         min_band=50.0
@@ -76,6 +76,11 @@ class Filterbank(nn.Module):
             window=0.54-0.46*torch.cos(2*math.pi*n/N)
             window=Variable(window.float())
 
+            # # plot filter
+            # plt.figure(figsize=(10, 5))
+            # plt.plot(band_pass.detach().cpu()*window.detach().cpu())
+            # plt.show()
+
             filters[i,:]=band_pass*window
         out = F.conv1d(x, filters.view(self.N_filt, 1, self.Filt_dim), padding=125) # (80, 1, 251) -> (1, 80, 3200)
         return out
@@ -83,7 +88,7 @@ class Filterbank(nn.Module):
     def get_filters(self):
         device = self.filt_b1.device
         N = self.Filt_dim
-        t_right = torch.linspace(1, (N - 1) / 2, steps=int((N - 1) / 2), device=device)
+        t_right=torch.linspace(1, (N - 1) / 2, steps=int((N - 1) / 2), device=device)/self.fs
 
         min_freq = 50.0
         min_band = 50.0

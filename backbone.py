@@ -18,7 +18,7 @@ class ConvAutoencoder(nn.Module):
             nn.ReLU(),
         )
 
-        # Decoder
+        # Decoder a on
         self.decoder = nn.Sequential(
             nn.ConvTranspose1d(512, 256, kernel_size=5, stride=2, padding=2, output_padding=1), # (256, 800)
             nn.ReLU(),
