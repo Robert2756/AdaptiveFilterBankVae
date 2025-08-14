@@ -28,7 +28,7 @@ def sinc(band,t_right):
     return y
 
 class Filterbank(nn.Module):
-    def __init__(self, N_filt, filt_dim, fs):
+    def __init__(self, N_filt, filt_dim, fs, filterbank_adaptive=True):
         super(Filterbank, self).__init__()
 
         self.fs = fs
@@ -42,12 +42,18 @@ class Filterbank(nn.Module):
         f_cos = (700 * (10**(mel_points / 2595) - 1)) # Convert Mel to Hz
         b1=np.roll(f_cos,1)
         b2=np.roll(f_cos,-1)
-        b1[0]=30
+        b1[0]=3 
         b2[-1]=(fs/2)-100
 
         self.freq_scale=fs*1.0
-        self.filt_b1 = nn.Parameter(torch.from_numpy(b1/self.freq_scale))
-        self.filt_band = nn.Parameter(torch.from_numpy((b2-b1)/self.freq_scale))
+        if filterbank_adaptive:
+            self.filt_b1 = nn.Parameter(torch.from_numpy(b1/self.freq_scale))
+            self.filt_band = nn.Parameter(torch.from_numpy((b2-b1)/self.freq_scale))
+        else:
+            self.filt_b1 = torch.from_numpy(b1 / self.freq_scale).float()
+            self.filt_band = torch.from_numpy((b2 - b1) / self.freq_scale).float()
+
+
 
     def forward(self, x):
         device = x.device # infer device from input

@@ -36,23 +36,43 @@ def load_rnd_chunk(signal):
 input_audio = load_rnd_chunk(input_audio)
 
 # init filterbank model
-checkpoint = torch.load('./checkpoints/checkpoint_epoch_1.pth')
-filterbank = Filterbank(N_filt=80, filt_dim=251, fs=16000)
+checkpoint = torch.load('./checkpoints/checkpoint_epoch_600.pth')
+filterbank = Filterbank(N_filt=80, filt_dim=251, fs=16000, filterbank_adaptive=True)
 filterbank.load_state_dict(checkpoint['filterbank_state_dict'])
 filterbank.eval()
 
-# plot filters
+# plot filters in time domain
 filters = filterbank.get_filters()
-
 plt.figure(figsize=(12, 8))
-for i in range(min(10, filters.shape[0])):  # Plot first 10 filters
-    plt.plot(filters[i], label=f'Filter {i}')
-plt.title('Learned Filter Impulse Responses')
+for i in range(filters.shape[0]):  # Plot first 10 filters
+    # plt.plot(filters[i], label=f'Filter {i}')
+    plt.plot(filters[i])
+plt.title('Learned Filterbank after training') # Initialized Filterbank
 plt.xlabel('Sample')
 plt.ylabel('Amplitude')
 plt.legend()
 plt.grid(True)
 plt.show()
+
+# plot filters in frequency domain
+fs = filterbank.fs  # sampling rate
+fft_len = 512  
+freqs = np.linspace(0, fs/2, fft_len//2) # Frequency axis in Hz
+plt.figure(figsize=(16, 6))
+for f in filters:
+    # Compute FFT
+    F = np.fft.fft(f, n=fft_len)
+    mag = np.abs(F[:fft_len//2])  # keep positive frequencies only
+    # Normalize magnitude
+    mag /= mag.max()
+    plt.plot(freqs, mag)
+plt.title("Learned SincNet Filters - Frequency Response")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("Magnitude")
+plt.grid(True)
+plt.show()
+
+
 
 # init reconstruction model
 conv_vae = ConvAutoencoder()
@@ -84,18 +104,26 @@ reconstructed_np = reconstructed_np.squeeze()  # shape becomes (signal_length,)
 # reconstructed_np = reconstructed_np / np.max(np.abs(reconstructed_np) + 1e-9)  # safe division
 
 # plot
-plt.figure(figsize=(10, 5))
-plt.plot(input_audio.squeeze((0, 1)))
+fig, axs = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
+
+# Plot original audio
+axs[0].plot(input_audio.squeeze((0, 1)))
+axs[0].set_title("Original Audio")
+axs[0].set_ylabel("Amplitude")
+
+# Plot reconstructed audio
+axs[1].plot(reconstructed_np)
+axs[1].set_title("Reconstructed Audio")
+axs[1].set_ylabel("Amplitude")
+
+
+plt.tight_layout()
 plt.show()
 
-plt.figure(figsize=(10, 5))
-plt.plot(reconstructed_np)
-plt.show()
-
-
-# Step 3: Save to a WAV file
+# Step 3: Save to WAV files
 sf.write("reconstructed.wav", reconstructed_np, samplerate=16000)  # adjust sample rate as needed
 sf.write("original.wav", input_audio.squeeze((0, 1)), samplerate=16000)
 
+# Print shapes
 print("Input audio shape: ", input_audio.squeeze((0, 1)).shape)
 print("Reconstructed audio: ", reconstructed_np.shape)
